@@ -93,7 +93,11 @@ def handle_text_message(event):
             memory.append(user_id, 'assistant', url)
 
         else:
-            user_model = model_management[user_id]
+    # もし登録されてなかったら、自動で共通APIキーを使う
+    user_model = model_management.get(user_id)
+    if not user_model:
+        user_model = OpenAIModel(api_key=os.getenv('OPENAI_API_KEY'))
+        model_management[user_id] = user_model
             memory.append(user_id, 'user', text)
             url = website.get_url_from_text(text)
             if url:
