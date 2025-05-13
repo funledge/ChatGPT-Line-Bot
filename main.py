@@ -82,6 +82,7 @@ def callback():
 def handle_text_message(event):
     user_id = event.source.user_id
     text = event.message.text.strip()
+    print("✅ メッセージ受信:", user_id, text)  # ←これ追加！
     logger.info(f'{user_id}: {text}')
 
     try:
