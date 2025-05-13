@@ -27,17 +27,32 @@ load_dotenv('.env')
 
 GAS_URL = "https://script.google.com/macros/s/AKfycbwwYbSuxJE0N2ExDu-gHuRH7TDIhB92jKZydr-uQ-WW9L2PTFjNA3ZP6Y7HBYhXHxA/exec"
 
+MAX_DAILY_LIMIT = 5
+
 def update_usage(user_id):
     today = datetime.now().strftime("%Y-%m-%d")
     try:
-        requests.post(GAS_URL, json={
+        res = requests.post(GAS_URL, json={
             "user_id": user_id,
             "date": today,
-            "count": 999
+            "check_only": False
         })
-        return True
+        return res.json().get("status") == "ok"
     except Exception as e:
         print("更新失敗", e)
+        return False
+
+def is_over_limit(user_id):
+    today = datetime.now().strftime("%Y-%m-%d")
+    try:
+        res = requests.post(GAS_URL, json={
+            "user_id": user_id,
+            "date": today,
+            "check_only": True
+        })
+        return res.json().get("count", 0) >= MAX_DAILY_LIMIT
+    except Exception as e:
+        print("チェック失敗", e)
         return False
 
 app = Flask(__name__)
@@ -105,12 +120,15 @@ def handle_text_message(event):
             memory.append(user_id, 'assistant', url)
 
         else:
-            user_model = model_management.get(user_id)
-            if not user_model:
-                user_model = OpenAIModel(api_key=os.getenv('OPENAI_API_KEY'))
-                model_management[user_id] = user_model
+            if is_over_limit(user_id):
+                msg = TextSendMessage(text='今日の無料利用回数（5回）を超えました！続けて利用したい場合は有料プランをご検討ください😊')
+            else:
+                user_model = model_management.get(user_id)
+                if not user_model:
+                    user_model = OpenAIModel(api_key=os.getenv('OPENAI_API_KEY'))
+                    model_management[user_id] = user_model
 
-            prompt = f"""
+                prompt = f"""
 あなたは英語添削をする先生です。
 以下の英文を添削してください。
 
@@ -126,18 +144,18 @@ def handle_text_message(event):
 → 添削後の正しい英文
 
 【アドバイス】
-（日本語でアドバイス）
+（日本語で一言アドバイス）
 
 対象の英文：
 「{text}」
 """
-            is_successful, response, error_message = user_model.chat_completions([
-                {'role': 'user', 'content': prompt}
-            ], os.getenv('OPENAI_MODEL_ENGINE'))
-            if not is_successful:
-                raise Exception(error_message)
-            msg = TextSendMessage(text=response)
-            update_usage(user_id)
+                is_successful, response, error_message = user_model.chat_completions([
+                    {'role': 'user', 'content': prompt}
+                ], os.getenv('OPENAI_MODEL_ENGINE'))
+                if not is_successful:
+                    raise Exception(error_message)
+                msg = TextSendMessage(text=response)
+                update_usage(user_id)
 
     except ValueError:
         msg = TextSendMessage(text='Token 無效，請重新註冊，格式為 /註冊 sk-xxxxx')
@@ -152,7 +170,6 @@ def handle_text_message(event):
         else:
             msg = TextSendMessage(text=str(e))
     line_bot_api.reply_message(event.reply_token, msg)
-
 
 @app.route("/", methods=['GET'])
 def home():
