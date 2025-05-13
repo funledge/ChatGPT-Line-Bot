@@ -32,14 +32,14 @@ MAX_DAILY_LIMIT = 5
 def update_usage(user_id):
     today = datetime.now().strftime("%Y-%m-%d")
     try:
-        res = requests.post(GAS_URL, json={
+        requests.post(GAS_URL, json={
             "user_id": user_id,
             "date": today,
-            "check_only": False
-        })
-        return res.json().get("status") == "ok"
+            "count": 1
+        }, timeout=2)
+        return True
     except Exception as e:
-        print("更新失敗", e)
+        print("スプレッドシート更新失敗:", e)
         return False
 
 def is_over_limit(user_id):
@@ -49,7 +49,7 @@ def is_over_limit(user_id):
             "user_id": user_id,
             "date": today,
             "check_only": True
-        })
+        }, timeout=2)
         return res.json().get("count", 0) >= MAX_DAILY_LIMIT
     except Exception as e:
         print("チェック失敗", e)
@@ -155,7 +155,10 @@ def handle_text_message(event):
                 if not is_successful:
                     raise Exception(error_message)
                 msg = TextSendMessage(text=response)
-                update_usage(user_id)
+                try:
+                    update_usage(user_id)
+                except Exception as e:
+                    logger.error(f"update_usage failed: {e}")
 
     except ValueError:
         msg = TextSendMessage(text='Token 無效，請重新註冊，格式為 /註冊 sk-xxxxx')
@@ -190,5 +193,3 @@ if __name__ == "__main__":
         pass
 
     app.run(host="0.0.0.0", port=8080, debug=False)
-
-
