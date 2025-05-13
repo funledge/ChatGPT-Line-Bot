@@ -198,3 +198,28 @@ if __name__ == "__main__":
     except FileNotFoundError:
         pass
     app.run(host='0.0.0.0', port=8080)
+
+import requests
+from datetime import datetime
+
+GAS_URL = "https://script.google.com/macros/s/AKfycbwwYbSuxJE0N2ExDu-gHuRH7TDIhB92jKZydr-uQ-WW9L2PTFjNA3ZP6Y7HBYhXHxA/exec"
+
+def update_usage(user_id):
+    today = datetime.now().strftime("%Y-%m-%d")
+    
+    # いまの送信回数をチェック（とりあえずスプレッドシート上の確認が必要）
+    # ここはシンプルに、Python側では「6回目なら止める」って設計でもOK
+
+    # スプレッドシート上の管理と連携（ここでは6回目の時だけ「STOP」させる想定）
+    # 本当はGETして回数確認 → 今はとりあえずローカル管理で簡易運用OK
+    try:
+        requests.post(GAS_URL, json={
+            "user_id": user_id,
+            "date": today,
+            "count": 999  # 仮で999にしてるので、後で管理が必要（このままだと無限に増えます）
+        })
+        return True
+    except Exception as e:
+        print("更新失敗", e)
+        return False
+
