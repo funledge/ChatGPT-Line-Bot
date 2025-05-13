@@ -80,6 +80,7 @@ def callback():
 
 @handler.add(MessageEvent, message=TextMessage)
 def handle_text_message(event):
+    print("✅ メッセージハンドラ呼ばれた")
     user_id = event.source.user_id
     text = event.message.text.strip()
     print("✅ メッセージ受信:", user_id, text)  # ←これ追加！
