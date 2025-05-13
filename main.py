@@ -174,3 +174,21 @@ def handle_text_message(event):
 @app.route("/", methods=['GET'])
 def home():
     return 'Hello World'
+
+if __name__ == "__main__":
+    if os.getenv('USE_MONGO'):
+        mongodb.connect_to_database()
+        storage = Storage(MongoStorage(mongodb.db))
+    else:
+        storage = Storage(FileStorage('db.json'))
+
+    try:
+        data = storage.load()
+        for user_id in data.keys():
+            model_management[user_id] = OpenAIModel(api_key=data[user_id])
+    except FileNotFoundError:
+        pass
+
+    app.run(host="0.0.0.0", port=8080, debug=False)
+
+
